@@ -54,7 +54,7 @@ public class SMPP implements MessageReceiverListener {
             session.connectAndBind(smppBind.getIp(), smppBind.getPort(), new BindParameter(BindType.valueOf(smppBind.getType()), smppBind.getAccountName(), smppBind.getAccountPassword(), smppBind.getSystemType(), TypeOfNumber.valueOf((byte) smppBind.getAddressTON()), NumberingPlanIndicator.valueOf((byte) smppBind.getAddressNPI()), null));
             session.addSessionStateListener(new SessionStateListenerImpl());
             session.setMessageReceiverListener(this);
-            session.setTransactionTimer(800);
+            session.setTransactionTimer(1800);
             if ((session.getSessionState().isBound()) || (session.getSessionState() == SessionState.OPEN)) {
                 System.out.println(String.format("[x] Connection to %s | %s | %s is opened", smppBind.getIp(), smppBind.getPort(), smppBind.getAccountName()));
             }
