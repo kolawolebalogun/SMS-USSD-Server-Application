@@ -70,26 +70,31 @@ public class Processors {
         boolean successful = false;
         TelcoAPI telcoAPI = new TelcoAPI();
 
+        Service service = submitMessage.getService();
+
         if (submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_SUBSCRIBE || submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE) {
-            if (submitMessage.getService().getTelcoAPISubscriptionID() != 0) {
-                telcoAPI.setID(submitMessage.getService().getTelcoAPISubscriptionID());
-                telcoAPI.setName(submitMessage.getService().getTelcoAPISubscriptionName());
-                telcoAPI.setURL(submitMessage.getService().getTelcoAPISubscriptionURL());
-                telcoAPI.setType(submitMessage.getService().getTelcoAPISubscriptionType());
-                telcoAPI.setMethod(submitMessage.getService().getTelcoAPISubscriptionMethod());
-                telcoAPI.setBodyType(submitMessage.getService().getTelcoAPISubscriptionBodyType());
-                telcoAPI.setHeader(submitMessage.getService().getTelcoAPISubscriptionHeader());
-                telcoAPI.setBody(submitMessage.getService().getTelcoAPISubscriptionBody());
-                telcoAPI.setBodyRaw(submitMessage.getService().getTelcoAPISubscriptionBodyRaw());
-                telcoAPI.setSuccessCode(submitMessage.getService().getTelcoAPISubscriptionSuccessCode());
-                telcoAPI.setInsufficientAirtimeCode(submitMessage.getService().getTelcoAPISubscriptionInsufficientAirtimeCode());
-                telcoAPI.setResponseCodeMatchType(submitMessage.getService().getTelcoAPISubscriptionResponseCodeMatchType());
-                telcoAPI.setResponseCodeMatchValue(submitMessage.getService().getTelcoAPISubscriptionResponseCodeMatchValue());
-                telcoAPI.setResponseDescriptionMatchType(submitMessage.getService().getTelcoAPISubscriptionResponseDescriptionMatchType());
-                telcoAPI.setResponseDescriptionMatchValue(submitMessage.getService().getTelcoAPISubscriptionResponseDescriptionMatchValue());
-                telcoAPI.setResponseTransactionIDMatchType(submitMessage.getService().getTelcoAPISubscriptionResponseTransactionIDMatchType());
-                telcoAPI.setResponseTransactionIDMatchValue(submitMessage.getService().getTelcoAPISubscriptionResponseTransactionIDMatchValue());
-                telcoAPI.setBills(submitMessage.getService().getTelcoAPISubscriptionBills());
+            if (submitMessage.getService().getParentID() != 0) {
+                service = Util.getServiceByID(submitMessage.getService().getParentID());
+            }
+            if (service.getTelcoAPISubscriptionID() != 0) {
+                telcoAPI.setID(service.getTelcoAPISubscriptionID());
+                telcoAPI.setName(service.getTelcoAPISubscriptionName());
+                telcoAPI.setURL(service.getTelcoAPISubscriptionURL());
+                telcoAPI.setType(service.getTelcoAPISubscriptionType());
+                telcoAPI.setMethod(service.getTelcoAPISubscriptionMethod());
+                telcoAPI.setBodyType(service.getTelcoAPISubscriptionBodyType());
+                telcoAPI.setHeader(service.getTelcoAPISubscriptionHeader());
+                telcoAPI.setBody(service.getTelcoAPISubscriptionBody());
+                telcoAPI.setBodyRaw(service.getTelcoAPISubscriptionBodyRaw());
+                telcoAPI.setSuccessCode(service.getTelcoAPISubscriptionSuccessCode());
+                telcoAPI.setInsufficientAirtimeCode(service.getTelcoAPISubscriptionInsufficientAirtimeCode());
+                telcoAPI.setResponseCodeMatchType(service.getTelcoAPISubscriptionResponseCodeMatchType());
+                telcoAPI.setResponseCodeMatchValue(service.getTelcoAPISubscriptionResponseCodeMatchValue());
+                telcoAPI.setResponseDescriptionMatchType(service.getTelcoAPISubscriptionResponseDescriptionMatchType());
+                telcoAPI.setResponseDescriptionMatchValue(service.getTelcoAPISubscriptionResponseDescriptionMatchValue());
+                telcoAPI.setResponseTransactionIDMatchType(service.getTelcoAPISubscriptionResponseTransactionIDMatchType());
+                telcoAPI.setResponseTransactionIDMatchValue(service.getTelcoAPISubscriptionResponseTransactionIDMatchValue());
+                telcoAPI.setBills(service.getTelcoAPISubscriptionBills());
             }
         } else if (submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_UNSUBSCRIBE) {
             if (submitMessage.getService().getTelcoAPIUnsubscriptionID() != 0) {
@@ -149,7 +154,7 @@ public class Processors {
             String responseTransactionIDMatchType = telcoAPI.getResponseTransactionIDMatchType();
             String responseTransactionIDMatchTypeValue = telcoAPI.getResponseTransactionIDMatchValue();
 
-            String apiResponse = Util.telcoAPIRequest(telcoAPI, submitMessage);
+            String apiResponse = Util.telcoAPIRequest(telcoAPI, service, submitMessage);
             if (apiResponse != null) {
                 responseCode = (responseCodeMatchType != null || responseCodeMatchTypeValue != null) ? Util.getValueFromResponse(responseCodeMatchType, responseCodeMatchTypeValue, apiResponse) : null;
                 responseDescription = (responseDescriptionMatchType != null && responseDescriptionMatchTypeValue != null) ? Util.getValueFromResponse(responseDescriptionMatchType, responseDescriptionMatchTypeValue, apiResponse) : null;
@@ -206,7 +211,8 @@ public class Processors {
     }
 
 
-    public static void processorAwaitingAsync(String task) throws ParseException, IOException, TimeoutException, ClassNotFoundException, SQLException, InstantiationException, IllegalAccessException {
+    public static void processorAwaitingAsync(String task)
+            throws ParseException, IOException, TimeoutException, ClassNotFoundException, SQLException, InstantiationException, IllegalAccessException {
         JSONParser parser = new JSONParser();
         JSONObject json = (JSONObject) parser.parse(task);
 
@@ -291,6 +297,9 @@ public class Processors {
                         submitMessage.setSubscriber(subscriber);
                         submitMessage.setDestinationAddress(subscriber.getMsisdn());
 
+                        Util.setActionForContent(submitMessage);
+                    } else {
+                        submitMessage.setDestinationAddress(msisdn);
                         Util.setActionForContent(submitMessage);
                     }
                 }
@@ -479,7 +488,7 @@ public class Processors {
                                         }
                                     } else {
                                         // Subscribe User to Service Here
-                                        if (service.getTariff() > 0 && !confirmationService.getTelcoAPISubscriptionBills()) {
+                                        if (service.getTariff() > 0 && !service.getTelcoAPISubscriptionBills()) {
                                             processBilling(submitMessage);
                                         } else {
                                             processSubscription(submitMessage);
@@ -625,12 +634,16 @@ public class Processors {
                     submitMessage.setSms(submitMessage.getService().getAlreadySubscribedMessage());
                     submitMessage.setSourceAddress(submitMessage.getService().getHelpShortCode());
                 } else {
-                    submitMessage.setTariff(submitMessage.getService().getOptInShortCodeTariff());
-                    subscribeProducer = new Producer(String.format("%s%s", AppConstants.PREFIX_OUTGOING_BIND, submitMessage.getService().getOptInShortCodeBind()), true);
-                    submitMessage.setSms(submitMessage.getService().getOptInMessage());
-                    submitMessage.setSourceAddress(submitMessage.getService().getOptInShortCode());
+                    if (!submitMessage.getService().getIgnoreMessagesOnSubscription()) {
+                        submitMessage.setTariff(submitMessage.getService().getOptInShortCodeTariff());
+                        subscribeProducer = new Producer(String.format("%s%s", AppConstants.PREFIX_OUTGOING_BIND, submitMessage.getService().getOptInShortCodeBind()), true);
+                        submitMessage.setSms(submitMessage.getService().getOptInMessage());
+                        submitMessage.setSourceAddress(submitMessage.getService().getOptInShortCode());
+                    }
                 }
-                subscribeProducer.sendMessage(new Gson().toJson(submitMessage), AppConstants.MO_PRIORITY);
+                if (subscribeProducer != null) {
+                    subscribeProducer.sendMessage(new Gson().toJson(submitMessage), AppConstants.MO_PRIORITY);
+                }
 
                 if (submitMessage.getService().getExternalAPI() != null) {
                     submitMessage.setExternalAPIType(AppConstants.SMS_STATUS_SUBSCRIBED);
@@ -760,7 +773,9 @@ public class Processors {
                     } else {
                         submitMessage.setSms(submitMessage.getService().getRenewalMessage());
                     }
-                    producer.sendMessage(new Gson().toJson(submitMessage), AppConstants.MO_PRIORITY);
+                    if (action != AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE && !submitMessage.getService().getIgnoreMessagesOnSubscription()) {
+                        producer.sendMessage(new Gson().toJson(submitMessage), AppConstants.MO_PRIORITY);
+                    }
                 }
 
                 if (submitMessage.getService().getExternalAPI() != null) {

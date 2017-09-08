@@ -660,6 +660,11 @@ public class Util {
 
     public static Subscriber subscribeUsers(int serviceID, String msisdn, Boolean billed) throws SQLException, IllegalAccessException, ClassNotFoundException, InstantiationException {
         Service service = Util.getServiceByID(serviceID);
+        Service parentService = null;
+
+        if (service.getParentID() != 0) {
+            parentService = Util.getServiceByID(service.getParentID());
+        }
         Subscriber subscriber = Util.getServiceSubscriber(serviceID, msisdn);
         String query;
 
@@ -677,7 +682,7 @@ public class Util {
                     stmt = connection.prepareStatement(query);
 
                     stmt.setString(1, msisdn);
-                    stmt.setInt(2, serviceID);
+                    stmt.setInt(2, (parentService != null) ? parentService.getID() : serviceID);
                     stmt.setInt(3, AppConstants.SUBSCRIBER_ACTIVE);
                     stmt.setInt(4, service.getBillingCycle());
                 } else if (!billed && subscriber.getID() == 0) {
@@ -685,12 +690,12 @@ public class Util {
                     stmt = connection.prepareStatement(query);
 
                     stmt.setString(1, msisdn);
-                    stmt.setInt(2, serviceID);
+                    stmt.setInt(2, (parentService != null) ? parentService.getID() : serviceID);
                     stmt.setInt(3, AppConstants.SUBSCRIBER_ACTIVE);
 
                 } else if (subscriber.getID() != 0) {
                     if (subscriber.getStatus() != AppConstants.SUBSCRIBER_ACTIVE) {
-                        if (Util.updateSubscriberStatusPerService(AppConstants.SUBSCRIBER_ACTIVE, msisdn, serviceID)) {
+                        if (Util.updateSubscriberStatusPerService(AppConstants.SUBSCRIBER_ACTIVE, msisdn, (parentService != null) ? parentService.getID() : serviceID)) {
                             subscriber.setStatus(AppConstants.SUBSCRIBER_ACTIVE);
                         }
                     } else {
@@ -703,7 +708,7 @@ public class Util {
 
                     connection.commit();
                     if (update == 1) {
-                        subscriber = Util.getServiceSubscriber(serviceID, msisdn);
+                        subscriber = Util.getServiceSubscriber((parentService != null) ? parentService.getID() : serviceID, msisdn);
                     }
                 }
 
@@ -957,7 +962,7 @@ public class Util {
     }
 
 
-    public static String telcoAPIRequest(TelcoAPI telcoAPI, SubmitMessage submitMessage) throws ParseException, IOException {
+    public static String telcoAPIRequest(TelcoAPI telcoAPI, Service service, SubmitMessage submitMessage) throws ParseException, IOException {
         String apiResponse = null;
         String url = telcoAPI.getURL();
         String method = telcoAPI.getMethod();
@@ -969,9 +974,9 @@ public class Util {
         Map<String, String> replaceStr = new HashMap<>();
         JSONParser parser = new JSONParser();
 
-        if (submitMessage.getService().getTelcoParams() != null) {
-            if (!submitMessage.getService().getTelcoParams().trim().equalsIgnoreCase("")) {
-                JSONArray json = (JSONArray) parser.parse(submitMessage.getService().getTelcoParams());
+        if (service.getTelcoParams() != null) {
+            if (!service.getTelcoParams().trim().equalsIgnoreCase("")) {
+                JSONArray json = (JSONArray) parser.parse(service.getTelcoParams());
                 for (Object aJson : json) {
                     JSONObject objects = (JSONObject) aJson;
                     replaceStr.put(String.format("`%s`", objects.get("key").toString()), objects.get("value").toString());

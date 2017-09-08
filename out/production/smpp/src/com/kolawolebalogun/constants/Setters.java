@@ -75,6 +75,7 @@ public class Setters {
         service.setRenewalDoneByTelco(rs.getBoolean("services.renewal_done_by_telco"));
         service.setIncludeServiceInGeneralHelp(rs.getBoolean("services.include_service_in_general_help"));
         service.setSendBillingNotification(rs.getBoolean("services.send_billing_notification"));
+        service.setIgnoreMessagesOnSubscription(rs.getBoolean("services.ignore_messages_on_subscription"));
         service.setCreatedAt(rs.getString("services.created_at"));
         service.setUpdatedAt(rs.getString("services.updated_at"));
         service.setDelete(rs.getBoolean("services.updated_at"));

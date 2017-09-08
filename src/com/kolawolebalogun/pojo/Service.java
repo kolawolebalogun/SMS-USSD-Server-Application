@@ -140,6 +140,7 @@ public class Service {
     private Boolean renewalDoneByTelco;
     private Boolean includeServiceInGeneralHelp;
     private Boolean sendBillingNotification = false;
+    private Boolean ignoreMessagesOnSubscription = false;
     private String createdAt;
     private String updatedAt;
     private Boolean delete;
@@ -1148,6 +1149,14 @@ public class Service {
 
     public void setSendBillingNotification(Boolean sendBillingNotification) {
         this.sendBillingNotification = sendBillingNotification;
+    }
+
+    public Boolean getIgnoreMessagesOnSubscription() {
+        return ignoreMessagesOnSubscription;
+    }
+
+    public void setIgnoreMessagesOnSubscription(Boolean ignoreMessagesOnSubscription) {
+        this.ignoreMessagesOnSubscription = ignoreMessagesOnSubscription;
     }
 
     public String getCreatedAt() {
