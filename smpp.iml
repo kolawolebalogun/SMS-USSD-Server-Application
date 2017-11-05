@@ -60,5 +60,9 @@
     </orderEntry>
     <orderEntry type="library" name="logback-classic-0.9.17" level="project" />
     <orderEntry type="library" name="logback-classic-1.2.3" level="project" />
+    <orderEntry type="library" name="javax.websocket-api-1.1" level="project" />
+    <orderEntry type="library" name="javax.json-api-1.1" level="project" />
+    <orderEntry type="library" name="tyrus-standalone-client-1.9" level="project" />
+    <orderEntry type="library" name="javax.json-1.1" level="project" />
   </component>
 </module>

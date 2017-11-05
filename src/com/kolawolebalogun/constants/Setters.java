@@ -194,6 +194,7 @@ public class Setters {
         smppBind.setAccountPassword(rs.getString("account_password"));
         smppBind.setSystemType(rs.getString("system_type"));
         smppBind.setTelcoName(rs.getString("telco_name"));
+        smppBind.setTelcoLogo(rs.getString("telco_logo"));
 
         return smppBind;
     }

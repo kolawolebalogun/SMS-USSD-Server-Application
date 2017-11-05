@@ -58,7 +58,9 @@ public class Processors {
         }
     }
 
-    public static void processorTelcoAPIRequest(String task) throws IOException, ParseException, TimeoutException, ClassNotFoundException, SQLException, InstantiationException, IllegalAccessException {
+    public static void processorTelcoAPIRequest(String task)
+            throws IOException, ParseException, TimeoutException, ClassNotFoundException,
+            SQLException, InstantiationException, IllegalAccessException {
 
         SubmitMessage submitMessage = new Gson().fromJson(task, SubmitMessage.class);
 
@@ -71,12 +73,12 @@ public class Processors {
         TelcoAPI telcoAPI = new TelcoAPI();
 
         Service service = submitMessage.getService();
-
         if (submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_SUBSCRIBE || submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE) {
             if (submitMessage.getService().getParentID() != 0) {
                 service = Util.getServiceByID(submitMessage.getService().getParentID());
             }
-            if (service.getTelcoAPISubscriptionID() != 0) {
+
+            if (service.getTelcoAPISubscriptionID() != 0 && (submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_SUBSCRIBE || service.getTelcoAPISubscriptionBills())) {
                 telcoAPI.setID(service.getTelcoAPISubscriptionID());
                 telcoAPI.setName(service.getTelcoAPISubscriptionName());
                 telcoAPI.setURL(service.getTelcoAPISubscriptionURL());
@@ -95,6 +97,25 @@ public class Processors {
                 telcoAPI.setResponseTransactionIDMatchType(service.getTelcoAPISubscriptionResponseTransactionIDMatchType());
                 telcoAPI.setResponseTransactionIDMatchValue(service.getTelcoAPISubscriptionResponseTransactionIDMatchValue());
                 telcoAPI.setBills(service.getTelcoAPISubscriptionBills());
+            } else if (service.getTelcoAPIBillingID() != 0 && submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE) {
+                telcoAPI.setID(service.getTelcoAPIBillingID());
+                telcoAPI.setName(service.getTelcoAPIBillingName());
+                telcoAPI.setURL(service.getTelcoAPIBillingURL());
+                telcoAPI.setType(service.getTelcoAPIBillingType());
+                telcoAPI.setMethod(service.getTelcoAPIBillingMethod());
+                telcoAPI.setBodyType(service.getTelcoAPIBillingBodyType());
+                telcoAPI.setHeader(service.getTelcoAPIBillingHeader());
+                telcoAPI.setBody(service.getTelcoAPIBillingBody());
+                telcoAPI.setBodyRaw(service.getTelcoAPIBillingBodyRaw());
+                telcoAPI.setSuccessCode(service.getTelcoAPIBillingSuccessCode());
+                telcoAPI.setInsufficientAirtimeCode(service.getTelcoAPIBillingInsufficientAirtimeCode());
+                telcoAPI.setResponseCodeMatchType(service.getTelcoAPIBillingResponseCodeMatchType());
+                telcoAPI.setResponseCodeMatchValue(service.getTelcoAPIBillingResponseCodeMatchValue());
+                telcoAPI.setResponseDescriptionMatchType(service.getTelcoAPIBillingResponseDescriptionMatchType());
+                telcoAPI.setResponseDescriptionMatchValue(service.getTelcoAPIBillingResponseDescriptionMatchValue());
+                telcoAPI.setResponseTransactionIDMatchType(service.getTelcoAPIBillingResponseTransactionIDMatchType());
+                telcoAPI.setResponseTransactionIDMatchValue(service.getTelcoAPIBillingResponseTransactionIDMatchValue());
+                telcoAPI.setBills(true);
             }
         } else if (submitMessage.getAction() == AppConstants.OUTGOING_MESSAGES_UNSUBSCRIBE) {
             if (submitMessage.getService().getTelcoAPIUnsubscriptionID() != 0) {
@@ -253,10 +274,12 @@ public class Processors {
             int serviceID = Integer.parseInt(json.get("service_id").toString());
             JSONObject contentObject = (JSONObject) json.get("content");
             Content content = new Content();
-            content.setID(Integer.parseInt(contentObject.get("id").toString()));
-            content.setServiceID(Integer.parseInt(contentObject.get("service_id").toString()));
-            content.setContent(contentObject.get("content").toString());
-            content.setScheduledDate(contentObject.get("scheduled_date").toString());
+            if (contentObject.get("id") != null) content.setID(Integer.parseInt(contentObject.get("id").toString()));
+            if (contentObject.get("service_id") != null)
+                content.setServiceID(Integer.parseInt(contentObject.get("service_id").toString()));
+            if (contentObject.get("content") != null) content.setContent(contentObject.get("content").toString());
+            if (contentObject.get("scheduled_date") != null)
+                content.setScheduledDate(contentObject.get("scheduled_date").toString());
             String msisdn = (json.get("msisdn") != null) ? Util.internationalNumberFormat(json.get("msisdn").toString()) : null;
 
             Service service = Util.getServiceByID(serviceID);
@@ -438,7 +461,10 @@ public class Processors {
             String sourceAddress = json.get("source_address").toString();
             String destinationAddress = json.get("destination_address").toString();
             String keyword = json.get("keyword").toString();
-            Boolean confirmation = json.get("confirmation") == null || Boolean.parseBoolean(json.get("confirmation").toString());
+            Boolean confirmation = true;
+            if (json.get("confirmation") != null) {
+                confirmation = Boolean.parseBoolean(json.get("confirmation").toString());
+            }
             String bearer = json.get("bearer").toString();
 
 
@@ -473,26 +499,16 @@ public class Processors {
                         if (service.getExternalAPI() == null || (service.getExternalAPI() != null && service.getExternalAPIProcessing() == 2)) {
                             if (getUserAction.equalsIgnoreCase(AppConstants.USER_INPUT_ACTION_OPT_IN)) {
                                 Subscriber subscriber = Util.getActiveServiceSubscriber(service.getID(), submitMessage.getDestinationAddress());
-
                                 if (subscriber.getID() == 0) {
-                                    if ((!(service.getConfirmationMessage() == null || service.getConfirmationMessage().trim().equalsIgnoreCase("")))) {
-                                        if (!confirmation) {
-                                            if (service.getTariff() > 0 && !service.getTelcoAPISubscriptionBills()) {
-                                                submitMessage.setAction(AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE);
-                                                processBilling(submitMessage);
-                                            } else {
-                                                processSubscription(submitMessage);
-                                            }
-                                        } else {
-                                            processConfirmation(submitMessage);
-                                        }
-                                    } else {
-                                        // Subscribe User to Service Here
+                                    if (!confirmation || (service.getConfirmKeyword() == null || service.getConfirmKeyword().trim().equalsIgnoreCase(""))) {
                                         if (service.getTariff() > 0 && !service.getTelcoAPISubscriptionBills()) {
+                                            submitMessage.setAction(AppConstants.OUTGOING_MESSAGES_BILL_AND_SUBSCRIBE);
                                             processBilling(submitMessage);
                                         } else {
                                             processSubscription(submitMessage);
                                         }
+                                    } else {
+                                        processConfirmation(submitMessage);
                                     }
                                 } else {
                                     submitMessage.setSourceAddress(service.getHelpShortCode());
@@ -538,6 +554,7 @@ public class Processors {
                     ShortCode shortCode = Util.getShortCodeFromTelcoAndShortCode(telcoID, submitMessage.getSourceAddress());
                     submitMessage.setAction(AppConstants.OUTGOING_MESSAGES_DEFAULT);
                     submitMessage.setTariff(shortCode.getTariff());
+                    submitMessage.setService(null);
                     Producer producer = new Producer(String.format("%s%s", AppConstants.PREFIX_OUTGOING_BIND, shortCode.getSmppBind()), true);
                     submitMessage.setSms(String.format("Invalid Keyword. Send %s to %s for more info.", AppConstants.KEYWORD_GENERAL_HELP.toUpperCase(), submitMessage.getSourceAddress()));
                     producer.sendMessage(new Gson().toJson(submitMessage), AppConstants.MO_PRIORITY);

@@ -1,0 +1,84 @@
+{
+  "telco_apis": [
+    {
+      "size": "0",
+      "name": "Etisalat Direct Billing(Staging)"
+    },
+    {
+      "size": "0",
+      "name": "Subscription Engine"
+    },
+    {
+      "size": "0",
+      "name": "Airtel Subscription Engine"
+    },
+    {
+      "size": "0",
+      "name": "unSubscription Engine"
+    },
+    {
+      "size": "0",
+      "name": "Etisalat Direct Billing"
+    }
+  ],
+  "content_provider_receipt": {
+    "size": "0"
+  },
+  "bind_status": [
+    {
+      "bind_name": "abzafamt",
+      "telco_name": "9Mobile",
+      "size": 5,
+      "port": 8313,
+      "ip": "10.71.83.44"
+    },
+    {
+      "bind_name": "abzafamo",
+      "telco_name": "9Mobile",
+      "size": 5,
+      "port": 8313,
+      "ip": "10.71.83.44"
+    },
+    {
+      "bind_name": "2354539a",
+      "telco_name": "Airtel",
+      "size": 4,
+      "port": 31110,
+      "ip": "172.24.11.125"
+    }
+  ],
+  "incoming_messages": {
+    "size": "0"
+  },
+  "dnd_assembly": {
+    "size": "0"
+  },
+  "dnd_upload": {
+    "size": "0"
+  },
+  "awaiting_async": {
+    "size": "0"
+  },
+  "outgoing_messages": [
+    {
+      "telco_name": "Airtel",
+      "size": "0",
+      "ip": "172.24.11.125"
+    },
+    {
+      "telco_name": "9Mobile",
+      "size": "0",
+      "telco_logo": "uploads/telco/logos/o2p4lx34s94j8swdppux8mge5.png",
+      "ip": "10.71.83.44"
+    },
+    {
+      "telco_name": "9Mobile",
+      "size": "0",
+      "telco_logo": "uploads/telco/logos/o2p4lx34s94j8swdppux8mge5.png",
+      "ip": "10.71.83.44"
+    }
+  ],
+  "content_upload": {
+    "size": "0"
+  }
+}

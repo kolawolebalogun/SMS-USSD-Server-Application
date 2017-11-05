@@ -2,21 +2,23 @@ package com.kolawolebalogun;
 
 import com.kolawolebalogun.app.Variables;
 import com.kolawolebalogun.constants.AppConstants;
-import com.kolawolebalogun.database.MongoDatabaseConnection;
 import com.kolawolebalogun.jsmpp.SMPP;
 import com.kolawolebalogun.pojo.CustomSMPPSession;
 import com.kolawolebalogun.pojo.SMPPBind;
 import com.kolawolebalogun.pojo.TelcoAPI;
 import com.kolawolebalogun.rabbitmq.Consumer;
 import com.kolawolebalogun.util.Util;
-import com.mongodb.client.MongoDatabase;
+import com.kolawolebalogun.websocket.application.Client;
 import org.jsmpp.session.SMPPSession;
 
-import java.sql.SQLException;
-import java.util.*;
+import javax.websocket.Session;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+
 public class Main {
+    static Session session = null;
 
     public static void main(String[] args) {
         // write your code here
@@ -25,20 +27,24 @@ public class Main {
             List<SMPPBind> smppBinds = Util.getSMPPAccounts();
             for (SMPPBind sm : smppBinds) {
                 for (int i = 0; i < sm.getMaxConnections(); i++) {
-                    SMPP smpp = new SMPP(sm);
-                    SMPPSession session = smpp.newSession();
-                    CustomSMPPSession smppSession = new CustomSMPPSession();
-                    smppSession.setSession(session);
-                    smppSession.setSmppBind(sm);
+                    try {
+                        SMPP smpp = new SMPP(sm);
+                        SMPPSession session = smpp.newSession();
+                        CustomSMPPSession smppSession = new CustomSMPPSession();
+                        smppSession.setSession(session);
+                        smppSession.setSmppBind(sm);
 
-                    ConcurrentLinkedQueue<CustomSMPPSession> smppSessions = Variables.smppSessions.get(String.valueOf(sm.getID()));
-                    if (smppSessions != null) {
-                        ConcurrentLinkedQueue<CustomSMPPSession> smppSessionQueue = Variables.smppSessions.get(String.valueOf(sm.getID()));
-                        smppSessionQueue.add(smppSession);
-                    } else {
-                        ConcurrentLinkedQueue<CustomSMPPSession> smppSessionQueue = new ConcurrentLinkedQueue<>();
-                        smppSessionQueue.add(smppSession);
-                        Variables.smppSessions.put(String.valueOf(sm.getID()), smppSessionQueue);
+                        ConcurrentLinkedQueue<CustomSMPPSession> smppSessions = Variables.smppSessions.get(String.valueOf(sm.getID()));
+                        if (smppSessions != null) {
+                            ConcurrentLinkedQueue<CustomSMPPSession> smppSessionQueue = Variables.smppSessions.get(String.valueOf(sm.getID()));
+                            smppSessionQueue.add(smppSession);
+                        } else {
+                            ConcurrentLinkedQueue<CustomSMPPSession> smppSessionQueue = new ConcurrentLinkedQueue<>();
+                            smppSessionQueue.add(smppSession);
+                            Variables.smppSessions.put(String.valueOf(sm.getID()), smppSessionQueue);
+                        }
+                    } catch (Exception e) {
+
                     }
                 }
             }
@@ -110,26 +116,15 @@ public class Main {
                 }
             }
 
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    for (Map.Entry<String, ConcurrentLinkedQueue<CustomSMPPSession>> entry : Variables.smppSessions.entrySet()) {
-                        try {
-                            SMPPBind smppBind = Util.getSMPPAccount(Integer.parseInt(entry.getKey()));
-                            System.out.println(String.format("[x] %s %s bind(%s:%s) has %s Connections ", smppBind.getTelcoName(), smppBind.getAccountName().toLowerCase(), smppBind.getIp(), smppBind.getPort(), entry.getValue().size()));
-                        } catch (SQLException e) {
-                            if (AppConstants.showError) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            }, 2000, 20000);
+            // Sleep before connecting to web socket
+            Thread.sleep(5000);
 
-
+            Client client = new Client();
+            session = client.connect();
         } catch (Exception e) {
-            e.printStackTrace();
+            if (AppConstants.showError) {
+                e.printStackTrace();
+            }
         }
     }
 }

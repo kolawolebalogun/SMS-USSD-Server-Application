@@ -139,4 +139,9 @@ public class AppConstants {
 
     // Mongo DB init
     public static final int MONGODB_MAX_CONNECTION = 50;
+
+
+    // Monitoring Tool WS URI
+    public static final String MONITORING_TOOL_URI = "ws://localhost:8088/ws/data-sync/abzafa/";
+    public static final String MONITORING_WS_USERNAME = "abzafa";
 }

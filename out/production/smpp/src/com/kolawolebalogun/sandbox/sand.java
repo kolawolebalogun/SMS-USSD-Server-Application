@@ -17,8 +17,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import javax.json.Json;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
@@ -34,17 +36,14 @@ public class sand {
 
     public static void main(String[] argv) throws Exception {
 
-        MongoDatabase mongoDatabase = MongoDatabaseConnection.getConnection();
-        MongoCollection collection = mongoDatabase.getCollection("service_confirmation");
+        String string = "outgoing_message_bind_id_3\t0";
+        System.out.println(new Gson().toJson(string.replace("\\s+", " ")));
 
-        System.out.println(collection);
-
-
-
-        MongoDatabase mongoDatabase2 = MongoDatabaseConnection.getConnection();
-        MongoCollection collection2 = mongoDatabase2.getCollection("service_confirmation");
-
-        System.out.println(collection2);
+        System.out.println(Json.createObjectBuilder()
+                .add("content", "Kola")
+                .add("sender", "Balogun")
+                .add("received", LocalTime.now().toString())
+                .build().toString());
     }
 
 

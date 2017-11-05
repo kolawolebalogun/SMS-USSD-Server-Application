@@ -20,6 +20,7 @@ public class SMPPBind {
     private String accountPassword;
     private String systemType;
     private String telcoName;
+    private String telcoLogo;
 
     public int getID() {
         return ID;
@@ -147,5 +148,13 @@ public class SMPPBind {
 
     public void setTelcoName(String telcoName) {
         this.telcoName = telcoName;
+    }
+
+    public String getTelcoLogo() {
+        return telcoLogo;
+    }
+
+    public void setTelcoLogo(String telcoLogo) {
+        this.telcoLogo = telcoLogo;
     }
 }

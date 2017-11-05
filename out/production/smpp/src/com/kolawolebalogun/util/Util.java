@@ -25,14 +25,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.bson.Document;
-import org.jsmpp.InvalidResponseException;
-import org.jsmpp.PDUException;
-import org.jsmpp.bean.*;
-import org.jsmpp.extra.NegativeResponseException;
-import org.jsmpp.extra.ResponseTimeoutException;
-import org.jsmpp.extra.SessionState;
-import org.jsmpp.session.SMPPSession;
-import org.jsmpp.util.AbsoluteTimeFormatter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -42,9 +34,13 @@ import javax.sql.DataSource;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.LocalTime;
 import java.util.*;
-import java.util.Date;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,7 +52,7 @@ import static com.mongodb.client.model.Filters.eq;
  */
 public class Util {
     public static Boolean updateSubscriberLastContent(SubmitMessage submitMessage) throws SQLException {
-        if(submitMessage.getService() != null) {
+        if (submitMessage.getService() != null) {
             Connection connection = null;
             PreparedStatement stmt = null;
             try {
@@ -180,7 +176,7 @@ public class Util {
         ResultSet rs = null;
 
         try {
-            String query = " SELECT `smpp_bind`.`id` AS `id`, `ip`, `port`, `tps`, `max_conn`, `type`, `address_ton`, `address_npi`, `source_address_ton`, `source_address_npi`, `destination_address_ton`, `destination_address_npi`, `account_name`, `account_password`, `system_type`, `telco`, `telco`.`name` AS `telco_name` " +
+            String query = " SELECT `smpp_bind`.`id` AS `id`, `ip`, `port`, `tps`, `max_conn`, `type`, `address_ton`, `address_npi`, `source_address_ton`, `source_address_npi`, `destination_address_ton`, `destination_address_npi`, `account_name`, `account_password`, `system_type`, `telco`, `telco`.`name` AS `telco_name`, `telco`.`logo` AS `telco_logo` " +
                     " FROM `smpp_bind` " +
                     " LEFT JOIN `telco` ON `telco`.`id` = `smpp_bind`.`telco` " +
                     " WHERE NOT `smpp_bind`.`delete` ";
@@ -241,6 +237,40 @@ public class Util {
         return telcoAPIs;
     }
 
+    public static TelcoAPI getTelcoAPI(Integer id) throws SQLException {
+        TelcoAPI telcoAPI = new TelcoAPI();
+
+        Connection connection = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            String query = " SELECT `id`, `name`, `api_category`, `max_connection` FROM `telco_apis` WHERE NOT `delete` AND `id` = ? ";
+            DataSource dataSource = DatabaseConnection.getDataSource();
+            connection = dataSource.getConnection();
+            stmt = connection.prepareStatement(query);
+            stmt.setInt(1, id);
+            rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                telcoAPI.setID(rs.getInt("id"));
+                telcoAPI.setName(rs.getString("name"));
+                telcoAPI.setApiCategory(rs.getInt("api_category"));
+                telcoAPI.setMaxConnection(rs.getInt("max_connection"));
+            }
+        } catch (Exception e) {
+            if (connection != null) connection.rollback();
+            if (AppConstants.showError) e.printStackTrace();
+
+        } finally {
+            if (rs != null) rs.close();
+            if (stmt != null) stmt.close();
+            if (connection != null) connection.close();
+        }
+
+        return telcoAPI;
+    }
+
     public static SMPPBind getSMPPAccount(int ID) throws SQLException {
         SMPPBind smppBind = new SMPPBind();
         Connection connection = null;
@@ -248,7 +278,7 @@ public class Util {
         ResultSet rs = null;
 
         try {
-            String query = " SELECT `smpp_bind`.`id` AS `id`, `ip`, `port`, `tps`, `max_conn`, `type`, `address_ton`, `address_npi`, `source_address_ton`, `source_address_npi`, `destination_address_ton`, `destination_address_npi`, `account_name`, `account_password`, `system_type`, `telco`, `telco`.`name` AS `telco_name` " +
+            String query = " SELECT `smpp_bind`.`id` AS `id`, `ip`, `port`, `tps`, `max_conn`, `type`, `address_ton`, `address_npi`, `source_address_ton`, `source_address_npi`, `destination_address_ton`, `destination_address_npi`, `account_name`, `account_password`, `system_type`, `telco`, `telco`.`name` AS `telco_name`, `telco`.`logo` AS `telco_logo` " +
                     " FROM `smpp_bind` " +
                     " LEFT JOIN `telco` ON `telco`.`id` = `smpp_bind`.`telco` " +
                     " WHERE NOT `smpp_bind`.`delete` AND `smpp_bind`.`id` = ? ";
@@ -395,7 +425,7 @@ public class Util {
         ResultSet rs = null;
         try {
             String query = Queries.SERVICE +
-                    " WHERE ( ? REGEXP `services`.`opt_in_keyword` OR ? REGEXP `services`.`opt_out_keyword` OR ? REGEXP `services`.`help_keyword` OR ? REGEXP `services`.`confirm_keyword` ) " +
+                    " WHERE ( `services`.`opt_in_keyword` REGEXP ? OR  `services`.`opt_out_keyword` REGEXP ? OR `services`.`help_keyword` REGEXP ? OR  `services`.`confirm_keyword` REGEXP ? ) " +
                     " AND ( `services`.`telco` = ? ) " +
                     " AND ( `opt_in_shortcode`.`shortcode` = ? OR `opt_out_shortcode`.`shortcode` = ? OR `help_shortcode`.`shortcode` = ? OR `confirmation_shortcode`.`shortcode` = ?) " +
                     " AND NOT `services`.`delete` ";
@@ -430,7 +460,8 @@ public class Util {
         return service;
     }
 
-    public static Service getServiceByID(int serviceID) throws IllegalAccessException, InstantiationException, ClassNotFoundException, SQLException {
+    public static Service getServiceByID(int serviceID)
+            throws IllegalAccessException, InstantiationException, ClassNotFoundException, SQLException {
         Service service = new Service();
 
         Connection connection = null;
@@ -470,14 +501,15 @@ public class Util {
         PreparedStatement stmt = null;
         ResultSet rs = null;
         try {
-            String query = " SELECT `id`, `msisdn`, `service_id`, `status`, `last_billed`, `subscription_expiry`, `last_content_sent_at`, `opt_in_at`, `opt_out_at`, `created_at`, `updated_at`, `delete`, `deleted_at` FROM `subscribers` WHERE status = ? AND service_id = ? AND DATEDIFF(DATE(last_content_sent_at), NOW()) <= ? ";
+            String query = " SELECT DISTINCT `msisdn`, `subscribers`.`id`, `service_id`, `status`, `last_billed`, `subscription_expiry`, `last_content_sent_at`, `opt_in_at`, `opt_out_at`, `subscribers`.`created_at`, `subscribers`.`updated_at`, `subscribers`.`delete`, `subscribers`.`deleted_at` FROM `subscribers` LEFT JOIN `services` ON `services`.`id` = `subscribers`.`service_id` WHERE `status` = ? AND (`service_id` = ? OR `services`.`parent` = ?) AND DATEDIFF(DATE(last_content_sent_at), NOW()) <= ? ";
             DataSource dataSource = DatabaseConnection.getDataSource();
             connection = dataSource.getConnection();
             stmt = connection.prepareStatement(query);
 
             stmt.setInt(1, AppConstants.SUBSCRIBER_ACTIVE);
             stmt.setInt(2, serviceID);
-            stmt.setInt(3, AppConstants.CHURN_LIMIT);
+            stmt.setInt(3, serviceID);
+            stmt.setInt(4, AppConstants.CHURN_LIMIT);
             rs = stmt.executeQuery();
 
 
@@ -563,7 +595,7 @@ public class Util {
         return subscriber;
     }
 
-    public static List<String> getGeneralHelpMessage(int telcoID) throws SQLException {
+    public static List<String> getGeneralHelpMessage(int telcoID, String shortcode) throws SQLException {
         List<String> helpMessages = new ArrayList<>();
         String sms = "";
 
@@ -573,19 +605,25 @@ public class Util {
 
         try {
             String query = " SELECT `help_message` FROM `services` " +
-                    " WHERE `include_service_in_general_help` AND NOT `delete` " +
-                    " AND `telco` = ? ";
+                    " LEFT JOIN `shortcode` " +
+                    "   ON `shortcode`.`id` = `services`.`opt_in_shortcode` " +
+                    "   OR `shortcode`.`id` = `services`.`help_shortcode`" +
+                    "   OR `shortcode`.`id` = `services`.`confirmation_shortcode`" +
+                    "   OR `shortcode`.`id` = `services`.`content_shortcode` " +
+                    " WHERE `include_service_in_general_help` AND NOT `services`.`delete` " +
+                    " AND `services`.`telco` = ? AND (`shortcode`.`shortcode` = ?)";
             DataSource dataSource = DatabaseConnection.getDataSource();
             connection = dataSource.getConnection();
             stmt = connection.prepareStatement(query);
 
             stmt.setInt(1, telcoID);
+            stmt.setString(2, shortcode);
             rs = stmt.executeQuery();
 
             while (rs.next()) {
                 if (rs.getString("help_message") != null) {
                     if ((sms.length() + rs.getString("help_message").length()) < AppConstants.SMS_LENGTH) {
-                        sms += rs.getString("help_message").trim() + "\n";
+                        sms += " " + rs.getString("help_message").trim() + "\n";
                     } else {
                         helpMessages.add(sms);
                         sms = rs.getString("help_message");
@@ -594,7 +632,7 @@ public class Util {
             }
 
             if (!sms.trim().equalsIgnoreCase("")) {
-                helpMessages.add(sms);
+                helpMessages.add(sms.trim());
             }
         } catch (Exception e) {
             if (connection != null) connection.rollback();
@@ -823,7 +861,7 @@ public class Util {
 
     public static String replaceStr(String value, Map<String, String> replaceString) {
 
-        if(replaceString != null) {
+        if (replaceString != null) {
             for (Map.Entry<String, String> entry : replaceString.entrySet()) {
                 value = value.replace(entry.getKey(), entry.getValue());
             }
@@ -939,14 +977,14 @@ public class Util {
             try {
                 json = (JSONArray) parser.parse(submitMessage.getService().getTelcoParams());
             } catch (ParseException e) {
-                if(AppConstants.showError) {
+                if (AppConstants.showError) {
                     e.printStackTrace();
                 }
             }
-            if(json != null) {
+            if (json != null) {
                 for (Object aJson : json) {
                     JSONObject objects = (JSONObject) aJson;
-                    if (objects.get("send_to_external_param").toString() != null && Boolean.parseBoolean(objects.get("send_to_external_param").toString())) {
+                    if (objects.get("send_to_external_param") != null && objects.get("send_to_external_param").toString() != null && Boolean.parseBoolean(objects.get("send_to_external_param").toString())) {
                         params.add(new BasicNameValuePair(objects.get("key").toString(), objects.get("value").toString()));
                     }
                 }
@@ -1087,15 +1125,15 @@ public class Util {
     }
 
     public static Boolean getPushSMSStatus(String[] response) {
-        return response[0] != null || Objects.equals(response[1], AppConstants.ERROR_SEND_MESSAGE_TIMEOUT);
+        return response != null && (response[0] != null || (response[1] != null && Objects.equals(response[1], AppConstants.ERROR_SEND_MESSAGE_TIMEOUT)));
     }
 
     public static int getPushSMSState(String[] response) {
-        if (response[1] != null && Objects.equals(response[1], AppConstants.ERROR_SEND_MESSAGE_TIMEOUT)) {
+        if (response != null && response[1] != null && Objects.equals(response[1], AppConstants.ERROR_SEND_MESSAGE_TIMEOUT)) {
             return 1;
-        } else if (response[1] != null && Objects.equals(response[1], AppConstants.ERROR_INSUFFICIENT_BALANCE)) {
+        } else if (response != null && response[1] != null && Objects.equals(response[1], AppConstants.ERROR_INSUFFICIENT_BALANCE)) {
             return 2;
-        } else if (response[0] != null) {
+        } else if (response != null && response[0] != null) {
             return 3;
         }
 
@@ -1155,4 +1193,101 @@ public class Util {
             Processors.processBilling(submitMessage, producer);
         }
     }
+
+    public static String join(String[] strArr) {
+        StringBuilder strBuilder = new StringBuilder();
+        for (int i = 0; i < strArr.length; i++) {
+            strBuilder.append(strArr[i]);
+            strBuilder.append(" ");
+        }
+
+        return strBuilder.toString().trim();
+    }
+
+    public static List<String> executeOSCommand(String command) {
+        String s;
+        Process p;
+        List<String> output = new ArrayList<>();
+        try {
+            p = Runtime.getRuntime().exec(command);
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(p.getInputStream()));
+            while ((s = br.readLine()) != null) {
+                String[] split = s.trim().split("\\s+");
+                output.add(Util.join(split));
+            }
+            p.waitFor();
+            p.destroy();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return output;
+    }
+
+
+    public static JSONObject monitoringToolData() throws ClassNotFoundException, SQLException, InstantiationException, IllegalAccessException {
+        List<String> queues = Util.executeOSCommand("rabbitmqctl list_queues");
+        JSONObject monitoringToolObject = new JSONObject();
+        JSONArray outGoingMessagesArr = new JSONArray();
+        JSONArray bindStatusArr = new JSONArray();
+        JSONArray telcoAPIArr = new JSONArray();
+        for (String queue : queues) {
+            String[] split = queue.split("\\s+");
+            if (split.length == 2) {
+                if (queue.startsWith(AppConstants.PREFIX_OUTGOING_BIND)) {
+                    String id = split[0].replace(AppConstants.PREFIX_OUTGOING_BIND, "");
+                    if (!id.equalsIgnoreCase("0")) {
+                        SMPPBind smppBind = Util.getSMPPAccount(Integer.parseInt(id));
+                        JSONObject outGoingMessagesObj = new JSONObject();
+                        outGoingMessagesObj.put("telco_name", smppBind.getTelcoName());
+                        outGoingMessagesObj.put("telco_logo", smppBind.getTelcoLogo());
+                        outGoingMessagesObj.put("ip", smppBind.getIp());
+                        outGoingMessagesObj.put("bind_name", smppBind.getAccountName());
+                        outGoingMessagesObj.put("size", split[1]);
+                        outGoingMessagesObj.put("id", split[0]);
+
+                        outGoingMessagesArr.add(outGoingMessagesObj);
+                    }
+                } else if (queue.startsWith(AppConstants.PREFIX_TELCO_API_REQUEST)) {
+                    String[] ids = split[0].replace(AppConstants.PREFIX_TELCO_API_REQUEST, "").split("_");
+                    if (ids.length == 2) {
+                        TelcoAPI telcoAPI = Util.getTelcoAPI(Integer.parseInt(ids[1]));
+                        JSONObject telcoAPIObj = new JSONObject();
+
+                        telcoAPIObj.put("name", telcoAPI.getName());
+                        telcoAPIObj.put("size", split[1]);
+                        telcoAPIObj.put("id", split[0]);
+
+                        telcoAPIArr.add(telcoAPIObj);
+                    }
+                } else if (!queue.toLowerCase().replace("\\s+", "").startsWith("listing queues")) {
+                    JSONObject queueObj = new JSONObject();
+                    queueObj.put("size", split[1]);
+                    queueObj.put("id", split[0]);
+                    monitoringToolObject.put(split[0], queueObj);
+                }
+            }
+        }
+
+        for (Map.Entry<String, ConcurrentLinkedQueue<CustomSMPPSession>> entry : Variables.smppSessions.entrySet()) {
+            SMPPBind smppBind = Util.getSMPPAccount(Integer.parseInt(entry.getKey()));
+            JSONObject bindStatusObj = new JSONObject();
+            bindStatusObj.put("telco_name", smppBind.getTelcoName());
+            bindStatusObj.put("telco_logo", smppBind.getTelcoLogo());
+            bindStatusObj.put("bind_name", smppBind.getAccountName().toLowerCase());
+            bindStatusObj.put("ip", smppBind.getIp());
+            bindStatusObj.put("port", smppBind.getPort());
+            bindStatusObj.put("size", entry.getValue().size());
+
+            bindStatusArr.add(bindStatusObj);
+        }
+
+        monitoringToolObject.put("outgoing_messages", outGoingMessagesArr);
+        monitoringToolObject.put("bind_status", bindStatusArr);
+        monitoringToolObject.put("telco_apis", telcoAPIArr);
+
+        return monitoringToolObject;
+    }
+
 }

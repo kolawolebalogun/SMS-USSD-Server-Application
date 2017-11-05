@@ -156,7 +156,7 @@ public class SMPP implements MessageReceiverListener {
                     message.setAction(AppConstants.OUTGOING_MESSAGES_DEFAULT);
                     message.setSourceAddress(deliverSm.getDestAddress());
                     message.setDestinationAddress(deliverSm.getSourceAddr());
-                    List<String> helpMessages = Util.getGeneralHelpMessage(telco.getID());
+                    List<String> helpMessages = Util.getGeneralHelpMessage(telco.getID(), deliverSm.getDestAddress());
                     if (helpMessages.size() > 0) {
                         Producer producer = new Producer(String.format("%s%s", AppConstants.PREFIX_OUTGOING_BIND, smppBind.getID()), true);
                         Util.sendMultipleMessages(helpMessages, producer, message);
@@ -191,50 +191,54 @@ public class SMPP implements MessageReceiverListener {
     }
 
     public static String[] sendSMS(String destinationAddress, String sourceAddress, String sms, int protocolID, CustomSMPPSession messageSMPPSession) {
-        Util.systemOut((char) 27 + String.format("[%sm[x] Sending %s with session %s to %s from %s  with protocol %s on bind %s%s ", AppConstants.OUTPUT_COLOR_YELLOW, (sms != null) ? sms.trim().replaceAll("\\n", "").replaceAll("\\r", "") : "null", messageSMPPSession.getSession().getSessionId(), destinationAddress, sourceAddress, protocolID, AppConstants.PREFIX_OUTGOING_BIND, messageSMPPSession.getSmppBind().getID()));
-        String[] response = {null, null};
-
-        try {
-            if ((messageSMPPSession.getSession().getSessionState() == SessionState.CLOSED) || (destinationAddress == null || destinationAddress.trim().equalsIgnoreCase("")) || (sourceAddress == null || sourceAddress.trim().equalsIgnoreCase("")) || (sms == null || sms.trim().equalsIgnoreCase(""))) {
-                return response;
-            }
-
-            if (protocolID == AppConstants.SUBMIT_SM_64) {
-                if (AppConstants.showError) {
-                    System.out.println("[x] Sending Quite Message ");
-
-                }
-            }
-            String messageID = null;
-            String errorCode = null;
+        if(sms != null) {
+            Util.systemOut((char) 27 + String.format("[%sm[x] Sending %s with session %s to %s from %s  with protocol %s on bind %s%s ", AppConstants.OUTPUT_COLOR_YELLOW, sms.trim().replaceAll("\\n", "").replaceAll("\\r", ""), messageSMPPSession.getSession().getSessionId(), destinationAddress, sourceAddress, protocolID, AppConstants.PREFIX_OUTGOING_BIND, messageSMPPSession.getSmppBind().getID()));
+            String[] response = {null, null};
 
             try {
-                final RegisteredDelivery registeredDelivery = new RegisteredDelivery();
-                registeredDelivery.setSMSCDeliveryReceipt(SMSCDeliveryReceipt.SUCCESS_FAILURE);
-                messageID = messageSMPPSession.getSession().submitShortMessage("CMT", TypeOfNumber.valueOf((byte) messageSMPPSession.getSmppBind().getSourceAddressTON()),
-                        NumberingPlanIndicator.valueOf((byte) messageSMPPSession.getSmppBind().getSourceAddressNPI()), sourceAddress, TypeOfNumber.valueOf((byte) messageSMPPSession.getSmppBind().getDestinationAddressTON()), NumberingPlanIndicator.valueOf((byte) messageSMPPSession.getSmppBind().getDestinationAddressNPI()),
-                        destinationAddress, new ESMClass(), (byte) protocolID, (byte) 1, new AbsoluteTimeFormatter().format(new java.util.Date()), null,
-                        registeredDelivery, (byte) 0, new GeneralDataCoding(Alphabet.ALPHA_DEFAULT, MessageClass.CLASS1,
-                                false), (byte) 0, sms.getBytes());
-            } catch (PDUException | IOException | InvalidResponseException e) {
-                e.printStackTrace();
-            } catch (ResponseTimeoutException e) {
-                errorCode = AppConstants.ERROR_SEND_MESSAGE_TIMEOUT;
-            } catch (NegativeResponseException e) {
-                errorCode = Processors.processorSMPPNegativeValueExceptionMessage(e.getMessage());
+                if ((messageSMPPSession.getSession().getSessionState() == SessionState.CLOSED) || (destinationAddress == null || destinationAddress.trim().equalsIgnoreCase("")) || (sourceAddress == null || sourceAddress.trim().equalsIgnoreCase("")) || (sms.trim().equalsIgnoreCase(""))) {
+                    return response;
+                }
+
+                if (protocolID == AppConstants.SUBMIT_SM_64) {
+                    if (AppConstants.showError) {
+                        System.out.println("[x] Sending Quite Message ");
+
+                    }
+                }
+                String messageID = null;
+                String errorCode = null;
+
+                try {
+                    final RegisteredDelivery registeredDelivery = new RegisteredDelivery();
+                    registeredDelivery.setSMSCDeliveryReceipt(SMSCDeliveryReceipt.SUCCESS_FAILURE);
+                    messageID = messageSMPPSession.getSession().submitShortMessage("CMT", TypeOfNumber.valueOf((byte) messageSMPPSession.getSmppBind().getSourceAddressTON()),
+                            NumberingPlanIndicator.valueOf((byte) messageSMPPSession.getSmppBind().getSourceAddressNPI()), sourceAddress, TypeOfNumber.valueOf((byte) messageSMPPSession.getSmppBind().getDestinationAddressTON()), NumberingPlanIndicator.valueOf((byte) messageSMPPSession.getSmppBind().getDestinationAddressNPI()),
+                            destinationAddress, new ESMClass(), (byte) protocolID, (byte) 1, new AbsoluteTimeFormatter().format(new java.util.Date()), null,
+                            registeredDelivery, (byte) 0, new GeneralDataCoding(Alphabet.ALPHA_DEFAULT, MessageClass.CLASS1,
+                                    false), (byte) 0, sms.getBytes());
+                } catch (PDUException | IOException | InvalidResponseException e) {
+                    e.printStackTrace();
+                } catch (ResponseTimeoutException e) {
+                    errorCode = AppConstants.ERROR_SEND_MESSAGE_TIMEOUT;
+                } catch (NegativeResponseException e) {
+                    errorCode = Processors.processorSMPPNegativeValueExceptionMessage(e.getMessage());
+                }
+
+                response[0] = messageID;
+                response[1] = errorCode;
+
+                System.out.println(String.format("[x] Send Message response %s", new Gson().toJson(response)));
+            } catch (Exception e) {
+                if (AppConstants.showError) {
+                    e.printStackTrace();
+                }
             }
 
-            response[0] = messageID;
-            response[1] = errorCode;
-
-            System.out.println(String.format("[x] Send Message response %s", new Gson().toJson(response)));
-        } catch (Exception e) {
-            if (AppConstants.showError) {
-                e.printStackTrace();
-            }
+            return response;
         }
 
-        return response;
+        return null;
     }
 
     @Override
