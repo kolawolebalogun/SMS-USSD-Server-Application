@@ -41,4 +41,4 @@ SMS/USSD Server Application Example has been tested in the following environment
 ![Screen Shot 1](https://user-images.githubusercontent.com/8668661/32417923-cc68a82a-c260-11e7-9d6d-e9c3f0aa6a89.png)
 ![Screen Shot 2](https://user-images.githubusercontent.com/8668661/32417926-d6458a48-c260-11e7-9826-1225fad35c8e.png)
 
-For more screenshot visit ![https://marvelapp.com/2b9j77f/screen/33501297](https://marvelapp.com/2b9j77f/screen/33501297) or ![https://www.dropbox.com/sh/jxbikaee78noa34/AADPqywFBlIl9ucnLDazLIsLa?dl=0](https://www.dropbox.com/sh/jxbikaee78noa34/AADPqywFBlIl9ucnLDazLIsLa?dl=0)
+For more screenshot visit [https://marvelapp.com/2b9j77f/screen/33501297](https://marvelapp.com/2b9j77f/screen/33501297) or [https://www.dropbox.com/sh/jxbikaee78noa34/AADPqywFBlIl9ucnLDazLIsLa?dl=0](https://www.dropbox.com/sh/jxbikaee78noa34/AADPqywFBlIl9ucnLDazLIsLa?dl=0)
