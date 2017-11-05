@@ -1,6 +1,6 @@
 # SMS/USSD Server Application
 
-Phase 1 of a 3 Phase Bundled Application
+Phase 1 of a 3 Phased Bundled Application
 
 Host your Short codes and create unique Value-Added-Services (VAS), easily. This system can help easily set up variety of services like instant win, polling, voting templates. Monetize this services by easily integrating the billing system either MT&MO, or third party Billing platforms like Direct Billing(UCIP etc). Also detailed reporting systems provide you with a detailed revenue.
 
