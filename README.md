@@ -11,7 +11,7 @@ Also Services configured to have Double confirmation, confirms the users before 
 
 ## Demo
 
-A prototype version of the full bundle can be seen on ![https://marvelapp.com/2b9j77f/screen/33501297](https://marvelapp.com/2b9j77f/screen/33501297). I built the Frontend using Angular & the Web Service API with Python(Django)
+A prototype version of the full bundle can be seen on [https://marvelapp.com/2b9j77f/screen/33501297](https://marvelapp.com/2b9j77f/screen/33501297). I built the Frontend using Angular & the Web Service API with Python(Django)
 
 ## Requirement
 
